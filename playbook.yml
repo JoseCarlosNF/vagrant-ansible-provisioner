@@ -1,0 +1,96 @@
+---
+- name: Configuração básica dos servidores
+  become: yes
+  hosts: servers
+  tasks:
+    - name: Instalação de pacotes básicos
+      apt:
+        name:
+          - zsh
+          - ntp
+        state: present
+        install_recommends: no
+        update_cache: yes
+
+    - name: Criação do usuário suporte
+      user:
+        name: suporte
+        password: $6$c07IH5/9kSHmBdUg$V4bkgKp7S088qg8cVLsLQw4XT13mvnAnCbxfF53SUU01x3FbjYkxUUdDHXaLnAwV5a7b1kFYNym3kL3nR67iS.
+        groups:
+          - sudo
+        state: present
+        shell: /bin/zsh
+        system: no
+        createhome: yes
+        home: /home/.suporte
+
+    - name: Geração do locale
+      locale_gen:
+        name: 'pt_BR.UTF-8'
+        state: present
+
+    - name: Set do locale
+      command: localectl set-locale LANG=pt_BR.utf8
+      become: yes
+
+    - name: Configuração do NTP
+      vars:
+        ntp_server:
+          - pool.ntp.org
+          - south-america.pool.ntp.org
+      template:
+        src: ./ntp.conf.j2
+        dest: /etc/ntp.conf
+      notify:
+        - restart ntp
+
+    - name: Set do timezone
+      timezone:
+        name: America/Belem
+
+  handlers:
+    - name: restart ntp
+      systemd:
+        name: ntp
+        state: restarted
+
+
+- name: Configuração dos web-servers
+  become: yes
+  hosts: web-servers
+  tasks:
+    - name: Instalação do nginx
+      apt:
+        name:
+          - nginx
+        state: present
+        install_recommends: no
+        update_cache: yes
+
+    - name: Copiar index.html
+      copy:
+        src: ./src/index.html
+        dest: /var/www/html/index.html
+      notify: reload nginx
+
+  handlers:
+    - name: reload nginx
+      systemd:
+        name: nginx
+        enabled: yes
+        state: reloaded
+
+
+- name: Configurações do Iptables
+  become: yes
+  hosts: block-icmp
+  tasks:
+    - name: Bloqueio de ICMP
+      iptables:
+        comment: Bloqueio de ICMP
+        action: append
+        chain: INPUT
+        protocol: icmp
+        jump: DROP
+        state: present
+...
