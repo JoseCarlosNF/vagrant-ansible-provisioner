@@ -24,7 +24,7 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.provision "ansible" do |ansible|
-    ansible.playbook = "playbook.yml"
+    ansible.playbook = "ansible/playbook.yml"
     ansible.groups = {
       "servers"     => ["host[1:2]"],
       "web-servers" => ["host1"],
